@@ -68,21 +68,23 @@ class FaceAnalysisService {
         const leftEyebrowIndices = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46];
         const rightEyebrowIndices = [336, 296, 334, 293, 300, 276, 283, 282, 295, 285];
 
-        // Correct Blush Areas (Left and Right Cheeks separated - LARGER AREA)
-        // These indices define a larger polygon covering the cheekbone + apple area
-        const leftCheekIndices = [330, 347, 346, 345, 425, 266, 372, 383, 300, 293, 334, 296, 336];
-        const rightCheekIndices = [101, 118, 117, 116, 205, 36, 143, 156, 70, 63, 105, 66, 107];
+        // Correct Blush Areas (Left and Right Cheeks - LOCALIZED TO APPLES)
+        // Correct Blush Areas (Left and Right Cheeks - EXPANDED)
+        // Expanded to cover apple and cheekbone for better visibility
+        const leftCheekIndices = [330, 347, 348, 349, 350, 425, 426, 427, 435, 266, 329, 371, 355, 433, 280];
+        const rightCheekIndices = [101, 118, 119, 120, 121, 205, 206, 207, 215, 36, 100, 142, 126, 213, 50];
 
         // Full face outline for foundation
         const faceOutlineIndices = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
 
         return {
             full: await this.createFullFaceMask(width, height, landmarks, faceOutlineIndices),
-            lips: await this.createMask(width, height, landmarks, lipIndices),
-            // Eyes: Include eyebrows + 10px blur to cover the eyelid area for eyeshadow
-            eyes: await this.createMask(width, height, landmarks, [leftEyeIndices, rightEyeIndices, leftEyebrowIndices, rightEyebrowIndices], 10),
-            // Cheeks: Use the larger cheek indices with reduced blur (10px) to keep intensity high
-            cheeks: await this.createMask(width, height, landmarks, [leftCheekIndices, rightCheekIndices], 10)
+            // Lips: Slight 3px blur for broader blending without losing shape
+            lips: await this.createMask(width, height, landmarks, lipIndices, 3),
+            // Eyes: Include eyebrows + 15px blur for soft eyeshadow edges
+            eyes: await this.createMask(width, height, landmarks, [leftEyeIndices, rightEyeIndices, leftEyebrowIndices, rightEyebrowIndices], 15),
+            // Cheeks: Use localized indices with large blur (25px) for a natural glow effect
+            cheeks: await this.createMask(width, height, landmarks, [leftCheekIndices, rightCheekIndices], 25)
         };
     }
 

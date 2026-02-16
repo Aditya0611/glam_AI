@@ -168,11 +168,26 @@ class GeminiService {
             - name: layer name (foundation/blush/lipstick/eyes)
             - mask: which facial region (full/cheeks/lips/eyes)
             - color: HEX color code that complements their features
-            - intensity: 0-100 (how strong the application should be)
+            - intensity: 0-100 (IMPORTANT: use 50-80 for natural looks, 80-100 for dramatic looks)
             - texture: matte/gloss/shimmer/satin/metallic
-            - prompt: A natural-looking prompt for THIS SPECIFIC LAYER ONLY. 
-              IMPORTANT: Focus ONLY on color and texture enhancement. DO NOT describe generic facial features or change the person's bone structure. 
-              Keep the person's identity 100% intact. Example: "subtle rosy blush on cheeks, natural skin glow"
+            - prompt: A HIGHLY SPECIFIC prompt for THIS LAYER ONLY that describes the exact makeup effect.
+              CRITICAL RULES:
+              1. Use makeup-specific keywords: "glossy", "matte", "shimmer", "metallic", "cream", "powder"
+              2. Include color descriptors: "coral pink", "deep burgundy", "warm bronze", "cool taupe"
+              3. Describe the finish: "dewy glow", "velvety matte", "high shine", "subtle shimmer"
+              4. DO NOT mention face shape, bone structure, or identity
+              5. Focus ONLY on the makeup product and its application
+              
+              GOOD EXAMPLES:
+              - Lipstick: "glossy coral pink lipstick with high shine finish, creamy texture, vibrant color"
+              - Blush: "warm peachy blush with subtle shimmer, natural flush on cheeks, soft glow"
+              - Eyeshadow: "shimmery bronze eyeshadow with metallic finish, warm tones, professional application"
+              - Foundation: "smooth matte foundation, even coverage, natural skin finish, flawless base"
+              
+              BAD EXAMPLES (too vague):
+              - "natural makeup"
+              - "pretty eyes"
+              - "beautiful face"
             
             
             CRITICAL: Return ONLY valid JSON. No markdown, no backticks, no explanations.
@@ -192,15 +207,31 @@ class GeminiService {
                   "color": "#F5D0C5",
                   "intensity": 50,
                   "texture": "matte",
-                  "prompt": "even skin tone, flawless foundation, natural finish, professional makeup base"
+                  "prompt": "smooth matte foundation with medium coverage, natural skin finish, flawless even tone, professional makeup base"
                 },
                 {
                   "name": "blush",
                   "mask": "cheeks",
                   "color": "#E2725B",
-                  "intensity": 40,
-                  "texture": "matte",
-                  "prompt": "soft peachy blush on cheeks, natural flush, subtle color"
+                  "intensity": 60,
+                  "texture": "satin",
+                  "prompt": "warm peachy blush with satin finish, natural flush on apple of cheeks, subtle glow, soft color"
+                },
+                {
+                  "name": "lipstick",
+                  "mask": "lips",
+                  "color": "#C74747",
+                  "intensity": 80,
+                  "texture": "gloss",
+                  "prompt": "glossy red lipstick with high shine finish, vibrant color, creamy texture, full coverage"
+                },
+                {
+                  "name": "eyes",
+                  "mask": "eyes",
+                  "color": "#8B6F47",
+                  "intensity": 70,
+                  "texture": "shimmer",
+                  "prompt": "shimmery bronze eyeshadow with metallic finish, warm golden tones, professional blended application"
                 }
               ]
             }
@@ -247,6 +278,7 @@ class GeminiService {
                 mask: 'full',
                 color: '#F5D0C5',
                 intensity: 50,
+                blendMode: 'normal',
                 texture: 'matte',
                 prompt: 'even skin tone, flawless foundation, natural finish, professional makeup base, 8k, photorealistic'
             },
@@ -254,26 +286,29 @@ class GeminiService {
             blush: {
                 name: 'blush',
                 mask: 'cheeks',
-                color: '#E2725B',
-                intensity: 60,
+                color: '#FF6B9D',
+                intensity: 70,
+                blendMode: 'multiply',
                 texture: 'matte',
-                prompt: 'prominent rosy blush on cheeks, visible makeup, warm flush, high pigmentation, 8k, photorealistic'
+                prompt: 'rosy pink blush on cheeks, natural flush, visible color, 8k, photorealistic'
             },
             lipstick: {
                 name: 'lipstick',
                 mask: 'lips',
-                color: '#C85A54',
-                intensity: 75,
-                texture: 'satin',
-                prompt: 'vibrant red lipstick, highly pigmented, defined lips, satin finish, professional makeup'
+                color: '#C70039', // Use TRUE RED instead of pink
+                intensity: 80,
+                blendMode: 'overlay',
+                texture: 'matte',
+                prompt: 'intense true red lipstick, defined lips, matte finish, professional makeup, bold red color'
             },
             eyes: {
                 name: 'eyes',
                 mask: 'eyes',
-                color: '#8B7355',
-                intensity: 70,
+                color: '#8B6F47',
+                intensity: 65,
+                blendMode: 'multiply',
                 texture: 'shimmer',
-                prompt: 'dark smokey eyeshadow, defined eyeliner, voluminious lashes, heavy eye makeup, dramatic look'
+                prompt: 'brown eyeshadow, defined eyes, natural eye makeup, professional look'
             }
         };
 

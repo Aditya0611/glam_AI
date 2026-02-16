@@ -28,9 +28,14 @@ export class ReplicateService {
      * @param {number} denoisingStrength - Optional denoising strength for inpainting (0-1)
      * @returns {Promise<Blob>} - Generated image
      */
-    async generateWithFluxLoRA(imageBlob, prompt, loraUrl = '', loraScale = 0.8, maskImage = null, denoisingStrength = 0.45, seed = null, controlImageBlob = null) {
+    async generateWithFluxLoRA(imageBlob, prompt, loraUrl = '', loraScale = 0.8, maskImage = null, denoisingStrength = 0.40, seed = null, controlImageBlob = null) {
+        // Auto-initialize if key is missing (Hotfix for HMR/State issues)
         if (!this.apiKey) {
-            throw new Error("Replicate API key not configured");
+            this.apiKey = import.meta.env.VITE_REPLICATE_API_KEY;
+        }
+
+        if (!this.apiKey) {
+            throw new Error("Replicate API key not configured. Please check .env file.");
         }
 
         try {
@@ -46,8 +51,8 @@ export class ReplicateService {
 
             const input = {
                 prompt: prompt,
-                num_inference_steps: 30,
-                guidance: 3.5, // Standard Flux guidance (30 was too high and caused distortion)
+                num_inference_steps: 40,
+                guidance: 4.0, // Higher guidance for more visible, dramatic makeup application
                 num_outputs: 1,
                 seed: seed || Math.floor(Math.random() * 1000000), // Use static seed if provided
                 // prompt_strength is used for img2img influence, flux-fill uses it for 'denoising'
@@ -80,7 +85,10 @@ export class ReplicateService {
 
             // Use the mask if available for targeted editing
             if (maskImage) {
-                input.mask = maskImage;
+                // Convert mask to base64 if it's a data URL already, otherwise assume it's base64
+                const maskBase64 = maskImage.startsWith('data:') ? maskImage : `data:image/png;base64,${maskImage}`;
+                input.mask = maskBase64;
+                console.log(`🎭 Mask applied for precise ${prompt.includes('lipstick') ? 'lip' : prompt.includes('eye') ? 'eye' : 'facial'} targeting`);
             }
 
             const response = await fetch("/api/replicate/v1/models/black-forest-labs/flux-fill-dev/predictions", {

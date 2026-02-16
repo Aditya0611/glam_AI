@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Sparkles, CheckCircle2, Loader2 } from 'lucide-react';
 
-const MakeupPlanDisplay = ({ makeupPlan, isGenerating = false }) => {
+const MakeupPlanDisplay = ({ makeupPlan, isGenerating = false, onIntensityChange }) => {
     if (isGenerating) {
         return (
             <div className="bg-gradient-to-br from-glam-500/10 to-purple-500/10 border border-glam-500/30 rounded-xl p-6">
@@ -95,17 +95,33 @@ const MakeupPlanDisplay = ({ makeupPlan, isGenerating = false }) => {
                             <div className="text-xs text-gray-400 truncate">{layer.prompt?.substring(0, 60)}...</div>
                         </div>
 
-                        {/* Color Swatch */}
+                        {/* Color Swatch & Intensity Slider */}
                         {layer.color && (
-                            <div className="flex items-center gap-2">
-                                <div
-                                    className="w-8 h-8 rounded-lg border-2 border-white/20 shadow-lg"
-                                    style={{ backgroundColor: layer.color }}
-                                    title={layer.color}
-                                />
-                                <div className="text-xs text-gray-400">
-                                    {layer.intensity}%
+                            <div className="flex flex-col items-end gap-2">
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        className="w-8 h-8 rounded-lg border-2 border-white/20 shadow-lg"
+                                        style={{ backgroundColor: layer.color }}
+                                        title={layer.color}
+                                    />
+                                    <div className="text-sm font-bold text-glam-300">
+                                        {layer.intensity}%
+                                    </div>
                                 </div>
+                                {onIntensityChange && (
+                                    <div className="w-32">
+                                        <input
+                                            type="range"
+                                            min="0"
+                                            max="100"
+                                            step="5"
+                                            value={layer.intensity}
+                                            onChange={(e) => onIntensityChange(index, parseInt(e.target.value))}
+                                            className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-glam-500"
+                                            title="Adjust color intensity"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         )}
                     </motion.div>

@@ -8,6 +8,7 @@ import MakeupPlanDisplay from './components/MakeupPlanDisplay.jsx';
 import { faceAnalysisService } from './services/FaceAnalysisService';
 import { geminiService } from './services/GeminiService';
 import { replicateService } from './services/ReplicateService';
+import { canvasMakeupService } from './services/CanvasMakeupService';
 import ReferenceUpload from './components/ReferenceUpload.jsx';
 import { getPresetById } from './data/makeupPresets.js';
 
@@ -23,12 +24,13 @@ function App() {
   const [statusMessage, setStatusMessage] = useState("");
   const [masks, setMasks] = useState(null);
   const [showMasks, setShowMasks] = useState(false);
-  const [denoisingStrength, setDenoisingStrength] = useState(0.45);
+  const [denoisingStrength, setDenoisingStrength] = useState(0.60);
   const [currentPhase, setCurrentPhase] = useState(1);
   const [intermediateSteps, setIntermediateSteps] = useState([]);
 
   // NEW: Preset and Makeup Plan state
   const [selectedPreset, setSelectedPreset] = useState(null);
+  const [customMakeupText, setCustomMakeupText] = useState('');
   const [makeupPlan, setMakeupPlan] = useState(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const [showPlanReview, setShowPlanReview] = useState(false);
@@ -39,14 +41,22 @@ function App() {
   const [faceStrength, setFaceStrength] = useState(0.45);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Generation Mode: 'fast' (Canvas) vs 'quality' (AI)
+  const [generationMode, setGenerationMode] = useState('fast');
+
   // Ref to hold the image element for analysis
   const imgRef = useRef(null);
 
   useEffect(() => {
-    // Initialize Gemini Service
+    // Initialize Services
     const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (geminiKey) {
       geminiService.initialize(geminiKey);
+    }
+
+    const replicateKey = import.meta.env.VITE_REPLICATE_API_KEY;
+    if (replicateKey) {
+      replicateService.initialize(replicateKey);
     }
   }, []);
 
@@ -134,7 +144,59 @@ function App() {
     }
   };
 
-  // NEW: Dynamic layer-wise generation based on Gemini plan
+  // NEW: Handle custom makeup text input
+  const handleCustomMakeup = async () => {
+    if (!customMakeupText.trim() || !image) return;
+
+    setSelectedPreset('custom');
+    setIsGeneratingPlan(true);
+    setStatusMessage("Gemini is creating your custom makeup plan...");
+
+    try {
+      const response = await fetch(image);
+      const blob = await response.blob();
+
+      // Generate plan with custom description
+      // Extract potential layers from the text (default to all layers)
+      const layers = ['foundation', 'blush', 'lipstick', 'eyes'];
+
+      const plan = await geminiService.generateMakeupPlan(
+        blob,
+        customMakeupText,
+        layers
+      );
+
+      setMakeupPlan(plan);
+      setShowPlanReview(true);
+      console.log("✨ Custom Makeup Plan Generated:", plan);
+    } catch (error) {
+      console.error("Custom plan generation failed:", error);
+      alert("Failed to generate custom makeup plan. Please try again.");
+    } finally {
+      setIsGeneratingPlan(false);
+      setStatusMessage("");
+    }
+  };
+
+  // Handle intensity slider changes
+  const handleIntensityChange = (layerIndex, newIntensity) => {
+    if (!makeupPlan || !makeupPlan.layers) return;
+
+    const updatedLayers = [...makeupPlan.layers];
+    updatedLayers[layerIndex] = {
+      ...updatedLayers[layerIndex],
+      intensity: newIntensity
+    };
+
+    setMakeupPlan({
+      ...makeupPlan,
+      layers: updatedLayers
+    });
+
+    console.log(`Updated ${updatedLayers[layerIndex].name} intensity to ${newIntensity}%`);
+  };
+
+  // NEW: Canvas-based makeup application (instant, free, no distortion!)
   const handleGenerate = async () => {
     if (!makeupPlan || !makeupPlan.layers || makeupPlan.layers.length === 0) {
       alert("Please select a makeup preset first to generate a plan!");
@@ -142,111 +204,156 @@ function App() {
     }
 
     setIsProcessing(true);
-    setStatusMessage("Starting makeup application...");
+    setStatusMessage("Applying makeup...");
 
     try {
-      const response = await fetch(image);
-      const blob = await response.blob();
+      // Load the original image
+      const img = new Image();
+      img.src = image;
 
-      const replicateKey = import.meta.env.VITE_REPLICATE_API_KEY;
-      if (!replicateKey) {
-        throw new Error("Replicate API Key missing. Please check .env file.");
-      }
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
 
-      replicateService.initialize(replicateKey);
-      let currentBlob = blob;
+      setStatusMessage(generationMode === 'fast' ? "Applying makeup layers..." : "Generating smart hybrid makeup...");
+      console.log(`🎨 Starting ${generationMode} makeup application`);
 
-      // Generate static seed for consistency
-      const staticSeed = Math.floor(Math.random() * 1000000);
-      console.log(`🎲 Static Seed: ${staticSeed}`);
+      if (generationMode === 'fast') {
+        // FAST MODE (Canvas)
+        // Apply makeup using canvas (instant)
+        const resultCanvas = await canvasMakeupService.applyMakeup(img, masks, makeupPlan);
 
-      setStatusMessage("Starting layer-by-layer application...");
-      setIntermediateSteps([]);
+        // Convert canvas to blob
+        const resultBlob = await canvasMakeupService.canvasToBlob(resultCanvas);
+        const resultUrl = URL.createObjectURL(resultBlob);
 
-      // Layer-specific denoising strengths (optimized for identity + visibility balance)
-      const denoisingMap = {
-        foundation: 0.35,  // Smooths skin but keeps features
-        blush: 0.45,       // Visible flush
-        lipstick: 0.50,    // Strong color, defined shape
-        eyes: 0.55         // Distinct shadow/liner
-      };
+        // Create intermediate steps for UI display
+        const steps = makeupPlan.layers.map((layer, index) => ({
+          name: layer.name,
+          image: resultUrl, // In canvas mode, we show final result for all steps
+          step: index + 1,
+          color: layer.color,
+          intensity: layer.intensity
+        }));
 
-      // Apply each layer sequentially
-      for (let i = 0; i < makeupPlan.layers.length; i++) {
-        const layer = makeupPlan.layers[i];
-        setStatusMessage(`Applying ${layer.name} (${i + 1}/${makeupPlan.layers.length})...`);
-        console.log(`🎨 Layer ${i + 1}: ${layer.name}`);
+        setIntermediateSteps(steps);
+        setGeneratedImage(resultUrl);
+        console.log("✅ Canvas makeup application complete!");
+      } else {
+        // SMART HYBRID MODE (Canvas + AI)
+        // 1. Split layers into Texture-Safe (Canvas) and Material-Rich (AI)
+        const skinLayers = makeupPlan.layers.filter(l => ['foundation', 'blush', 'contour', 'highlight'].includes(l.name.toLowerCase()));
+        const featureLayers = makeupPlan.layers.filter(l => !['foundation', 'blush', 'contour', 'highlight'].includes(l.name.toLowerCase()));
 
-        // Get the appropriate mask
-        const maskToUse = masks?.[layer.mask] || null;
-        if (!maskToUse && layer.mask !== 'full') {
-          console.warn(`⚠️ Mask "${layer.mask}" not found, skipping layer ${layer.name}`);
-          setIntermediateSteps(prev => [...prev, {
-            name: layer.name,
-            error: "Mask not found",
-            step: i + 1,
-            color: layer.color
+        console.log(`🎨 Smart Hybrid: Apply ${skinLayers.length} skin layers via Canvas, ${featureLayers.length} feature layers via AI`);
+
+        let currentBlob = null;
+        let currentUrl = image; // Start with original
+
+        // STEP 1: Apply Skin Layers via Canvas (Preserves Texture 100%)
+        if (skinLayers.length > 0) {
+          setStatusMessage("Step 1: Applying Foundation & Blush (Texture Safe)...");
+          // Create a temporary plan for just these layers
+          const skinPlan = { ...makeupPlan, layers: skinLayers };
+          const skinCanvas = await canvasMakeupService.applyMakeup(img, masks, skinPlan);
+          currentBlob = await canvasMakeupService.canvasToBlob(skinCanvas);
+          currentUrl = URL.createObjectURL(currentBlob);
+
+          // Show this intermediate result
+          setGeneratedImage(currentUrl);
+          setIntermediateSteps([{
+            name: "Skin Base (Canvas)",
+            image: currentUrl,
+            step: 1,
+            color: skinLayers[0].color,
+            intensity: 100
           }]);
-          continue;
+        } else {
+          // If no skin layers, start with original
+          const response = await fetch(image);
+          currentBlob = await response.blob();
         }
 
-        // Get layer-specific denoising
-        const layerDenoising = denoisingMap[layer.name] || 0.45;
+        // STEP 2: Apply Feature Layers via AI (Adds Gloss/Material)
+        const steps = [...(skinLayers.length > 0 ? [{ name: "Skin Base", image: currentUrl, step: 1 }] : [])];
+        const originalImageBlob = await (await fetch(image)).blob(); // Fetch original for ID Lock
 
-        try {
+        for (let i = 0; i < featureLayers.length; i++) {
+          const layer = featureLayers[i];
+          setStatusMessage(`Step ${i + 2}: Applying ${layer.name} (AI Enhanced)...`);
+
+          const maskData = masks[layer.mask];
+          if (!maskData) continue;
+
+          // FORCE OVERRIDE for Red Lipstick Preset
+          // This ensures that even if Gemini says "pink", we use RED.
+          let finalPrompt = layer.prompt;
+          if (selectedPreset === 'red-lips' && layer.name === 'lipstick') {
+            finalPrompt = "intense true red lipstick, matte finish, bold vibrant red color, defined lips, opaque, heavy saturation, high pigment, thick application";
+            console.log("🔴 FORCING RED LIPSTICK PROMPT");
+          }
+
+          // Call Replicate for this layer
+          // Input: The result of the previous step (includes Canvas or previous AI)
+          // Identity Lock: The ORIGINAL PHOTO (to prevent face drift)
+          // Calculate denoising strength based on layer intensity (0-100)
+          // Increased range: 0.35 to 0.85 for MAXIMUM IMPACT
+          const layerIntensity = layer.intensity || 80;
+          const calculatedStrength = 0.35 + ((layerIntensity / 100) * 0.50);
+
+          // Enhance prompt for high intensity
+          let enhancedPrompt = finalPrompt;
+          if (layerIntensity > 80) {
+            if (!enhancedPrompt.includes('heavy saturation')) {
+              enhancedPrompt += ", heavy saturation, bold intense color, high opacity, thick application, highly pigmented, opaque finish";
+            }
+          } else if (layerIntensity < 40) {
+            enhancedPrompt += ", sheer wash of color, subtle tint, transparent finish";
+          }
+
+          console.log(`🎨 Generating ${layer.name} with intensity ${layerIntensity}% (Strength: ${calculatedStrength.toFixed(2)})`);
+          console.log(`📝 Final Prompt: ${enhancedPrompt}`);
+
           currentBlob = await replicateService.generateWithFluxLoRA(
             currentBlob,
-            layer.prompt,
-            loraUrl,
-            loraScale,
-            maskToUse,
-            layerDenoising,
-            staticSeed,
-            blob // Always use original as ID reference
+            enhancedPrompt,
+            '', // No LoRA needed for standard makeup
+            0.8,
+            maskData,
+            calculatedStrength,
+            null, // Random seed
+            originalImageBlob // CRITICAL: Always lock ID to original photo
           );
 
-          // Save intermediate result
           const stepUrl = URL.createObjectURL(currentBlob);
-          setIntermediateSteps(prev => [...prev, {
+          steps.push({
             name: layer.name,
             image: stepUrl,
-            step: i + 1,
+            step: steps.length + 1,
             color: layer.color,
             intensity: layer.intensity
-          }]);
+          });
 
-          console.log(`✅ Layer ${i + 1} complete: ${layer.name}`);
-        } catch (layerError) {
-          console.error(`❌ Layer ${layer.name} failed:`, layerError);
-          // Add error step to UI
-          setIntermediateSteps(prev => [...prev, {
-            name: layer.name,
-            error: "Generation Failed",
-            step: i + 1,
-            color: layer.color
-          }]);
-          // Continue with next layer even if one fails
+          // Show progress
+          setIntermediateSteps([...steps]);
+          setGeneratedImage(stepUrl);
         }
+
+        console.log("✅ Smart Hybrid makeup generation complete!");
       }
 
-      if (!currentBlob || currentBlob.size === 0) {
-        throw new Error("Generation failed: Empty result");
-      }
-
-      // Success!
-      const resultUrl = URL.createObjectURL(currentBlob);
-      setGeneratedImage(resultUrl);
       setShowResult(true);
-      console.log("🎨 All layers complete!");
 
     } catch (error) {
-      console.error("🏁 Generation failed:", error);
-      alert("Generation failed: " + error.message);
+      console.error("🏁 Makeup application failed:", error);
+      alert("Makeup application failed: " + error.message);
     } finally {
       setIsProcessing(false);
       setStatusMessage("");
     }
   };
+
 
 
 
@@ -386,6 +493,7 @@ function App() {
                     <MakeupPlanDisplay
                       makeupPlan={makeupPlan}
                       isGenerating={isGeneratingPlan}
+                      onIntensityChange={handleIntensityChange}
                     />
                   )}
 
@@ -450,6 +558,24 @@ function App() {
                     )}
                   </div>
 
+                  {/* NEW: Generation Mode Toggle */}
+                  <div className="flex p-1 bg-black/40 rounded-xl border border-white/10 mb-2">
+                    <button
+                      onClick={() => setGenerationMode('fast')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-medium transition-all ${generationMode === 'fast' ? 'bg-glam-500 text-white shadow-lg shadow-glam-500/20' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      <span>⚡ Fast (Canvas)</span>
+                    </button>
+                    <button
+                      onClick={() => setGenerationMode('quality')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-medium transition-all ${generationMode === 'quality' ? 'bg-glam-500 text-white shadow-lg shadow-glam-500/20' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      <Wand2 className="h-3 w-3" />
+                      <span>✨ Quality (AI)</span>
+                    </button>
+                  </div>
+
                   {/* Generate Button */}
                   <button
                     onClick={handleGenerate}
@@ -466,7 +592,9 @@ function App() {
                       <>
                         <Wand2 className="h-5 w-5 group-hover:rotate-12 transition-transform relative z-10" />
                         <span className="relative z-10">
-                          {makeupPlan ? 'Apply Makeup' : 'Select Preset First'}
+                          {makeupPlan
+                            ? (generationMode === 'fast' ? 'Apply Fast Makeup' : 'Generate High Quality')
+                            : 'Select Preset First'}
                         </span>
                       </>
                     )}
