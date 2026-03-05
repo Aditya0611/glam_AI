@@ -6,30 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api/hf': {
-        target: 'https://router.huggingface.co',
+      // All /api/* requests go to the Python FastAPI backend
+      '/api': {
+        target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/hf/, ''),
-      },
-      '/api/pollinations': {
-        target: 'https://gen.pollinations.ai',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/pollinations/, ''),
-      },
-      '/api/replicate': {
-        target: 'https://api.replicate.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/replicate/, '')
-      },
-      '/api/segmind': {
-        target: 'https://api.segmind.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/segmind/, '')
-      },
-      '/api/fal': {
-        target: 'https://fal.run',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/fal/, '')
       }
     },
   },

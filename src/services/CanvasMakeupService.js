@@ -114,14 +114,8 @@ class CanvasMakeupService {
     blendColors(base, overlay, mode) {
         let blended;
         switch (mode) {
-            case 'multiply':
-                blended = this.blendMultiply(base, overlay);
-                break;
-            case 'overlay':
-                blended = this.blendOverlay(base, overlay);
-                break;
-            case 'screen':
-                blended = this.blendScreen(base, overlay);
+            case 'soft-light':
+                blended = this.blendSoftLight(base, overlay);
                 break;
             case 'normal':
             default:
@@ -129,15 +123,21 @@ class CanvasMakeupService {
                 break;
         }
 
-        // Preserve underlying luminosity to maintain skin texture
+        // IMPROVED: Smart detail preservation
+        // Balance between color payoff and skin texture (pores/details)
         const baseLum = (base.r * 0.299 + base.g * 0.587 + base.b * 0.114);
         const blendedLum = (blended.r * 0.299 + blended.g * 0.587 + blended.b * 0.114);
+
+        // Lower preservation means more color payoff. 
+        // 0.75 for soft-light (foundation) preserves skin but shows color.
+        // 0.65 for others (blush/lips) ensures makeup is visible.
+        const texturePreservation = mode === 'soft-light' ? 0.75 : 0.65;
         const lumFactor = baseLum / (blendedLum || 1);
 
         return {
-            r: Math.min(255, blended.r * (0.8 + 0.2 * lumFactor)),
-            g: Math.min(255, blended.g * (0.8 + 0.2 * lumFactor)),
-            b: Math.min(255, blended.b * (0.8 + 0.2 * lumFactor))
+            r: Math.min(255, blended.r * (texturePreservation + (1 - texturePreservation) * lumFactor)),
+            g: Math.min(255, blended.g * (texturePreservation + (1 - texturePreservation) * lumFactor)),
+            b: Math.min(255, blended.b * (texturePreservation + (1 - texturePreservation) * lumFactor))
         };
     }
 
@@ -160,6 +160,26 @@ class CanvasMakeupService {
             b = b / 255;
             o = o / 255;
             return (b < 0.5 ? 2 * b * o : 1 - 2 * (1 - b) * (1 - o)) * 255;
+        };
+
+        return {
+            r: blendChannel(base.r, overlay.r),
+            g: blendChannel(base.g, overlay.g),
+            b: blendChannel(base.b, overlay.b)
+        };
+    }
+
+    /**
+     * Soft Light blend mode (most natural for skin)
+     */
+    blendSoftLight(base, overlay) {
+        const blendChannel = (b, o) => {
+            b = b / 255;
+            o = o / 255;
+            return (o < 0.5 ?
+                (2 * b * o + b * b * (1 - 2 * o)) :
+                (Math.sqrt(b) * (2 * o - 1) + 2 * b * (1 - o))
+            ) * 255;
         };
 
         return {

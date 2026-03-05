@@ -1,13 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Sparkles } from 'lucide-react';
-import { getPresetOptions } from '../data/makeupPresets';
+import { geminiService } from '../services/GeminiService';
 
-const MakeupPresetDropdown = ({ selectedPreset, onPresetSelect, disabled = false }) => {
+const MakeupPresetDropdown = ({ selectedPreset, onPresetSelect, presets = [], disabled = false }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const presetOptions = getPresetOptions();
 
-    const selectedOption = presetOptions.find(opt => opt.value === selectedPreset);
+    const selectedOption = presets.find(opt => opt.id === selectedPreset);
+
+    const presetOptions = presets.map(p => ({
+        value: p.id,
+        label: p.name,
+        description: p.description,
+        icon: p.icon
+    }));
 
     return (
         <div className="relative">
