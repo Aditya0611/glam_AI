@@ -21,6 +21,7 @@ app.add_middleware(
         "http://localhost:8080",
         "http://127.0.0.1:8080",
         "https://loquacious-pika-589e9f.netlify.app",
+        "https://www.aileadagent.store",
         "https://glam-ai-v2.loca.lt", # For testing
     ],
     allow_credentials=True,
