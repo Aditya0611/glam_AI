@@ -81,7 +81,8 @@ export class ReplicateService {
             console.log(`🎭 Mask applied for precise targeting`);
         }
 
-        const url = "/api/replicate/predictions";
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        const url = `${baseUrl}/api/replicate/predictions`;
         console.log(`🔍 [ReplicateService] POST to: ${url}`);
         const response = await fetch(url, {
             method: "POST",
@@ -112,7 +113,8 @@ export class ReplicateService {
         const maxAttempts = 60;
 
         for (let i = 0; i < maxAttempts; i++) {
-            const url = `/api/replicate/predictions/${predictionId}`;
+            const baseUrl = import.meta.env.VITE_API_URL || '';
+            const url = `${baseUrl}/api/replicate/predictions/${predictionId}`;
             console.log(`🔍 [ReplicateService] Polling: ${url}`);
             const response = await fetch(url);
 
