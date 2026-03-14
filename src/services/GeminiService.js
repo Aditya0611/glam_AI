@@ -11,7 +11,8 @@ class GeminiService {
         for (const [key, value] of Object.entries(fields)) {
             formData.append(key, value);
         }
-        const response = await fetch(`/api/gemini/${endpoint}`, {
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${baseUrl}/api/gemini/${endpoint}`, {
             method: "POST",
             body: formData,
         });
@@ -26,7 +27,8 @@ class GeminiService {
      * Fetches all makeup presets from the backend.
      */
     async getPresets() {
-        const response = await fetch("/api/presets");
+        const baseUrl = import.meta.env.VITE_API_URL || '';
+        const response = await fetch(`${baseUrl}/api/presets`);
         if (!response.ok) {
             throw new Error(`Failed to fetch presets: ${response.statusText}`);
         }
