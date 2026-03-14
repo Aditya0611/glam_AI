@@ -12,12 +12,14 @@ from routes.presets import router as presets_router
 
 app = FastAPI(title="Glam AI Backend", version="1.0.0")
 
-# Allow requests from the React dev server
+# Allow requests from the React dev server and Netlify production
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://loquacious-pika-589e9f.netlify.app",
+        "https://glam-ai-v2.loca.lt", # For testing
     ],
     allow_credentials=True,
     allow_methods=["*"],

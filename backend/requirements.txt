@@ -4,3 +4,4 @@ python-dotenv
 google-generativeai
 httpx
 python-multipart
+gunicorn
