@@ -12,7 +12,9 @@ class GeminiService {
             formData.append(key, value);
         }
         const baseUrl = import.meta.env.VITE_API_URL || '';
-        const response = await fetch(`${baseUrl}/api/gemini/${endpoint}`, {
+        const url = `${baseUrl}/api/gemini/${endpoint}`;
+        console.log(`🔍 [GeminiService] Fetching: ${url}`);
+        const response = await fetch(url, {
             method: "POST",
             body: formData,
         });
@@ -28,7 +30,9 @@ class GeminiService {
      */
     async getPresets() {
         const baseUrl = import.meta.env.VITE_API_URL || '';
-        const response = await fetch(`${baseUrl}/api/presets`);
+        const url = `${baseUrl}/api/presets`;
+        console.log(`🔍 [GeminiService] Fetching Presets: ${url}`);
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Failed to fetch presets: ${response.statusText}`);
         }

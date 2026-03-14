@@ -81,8 +81,9 @@ export class ReplicateService {
             console.log(`🎭 Mask applied for precise targeting`);
         }
 
-        // POST to our Python backend (no Authorization header needed — backend adds it)
-        const response = await fetch("/api/replicate/predictions", {
+        const url = "/api/replicate/predictions";
+        console.log(`🔍 [ReplicateService] POST to: ${url}`);
+        const response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ input }),
@@ -111,7 +112,9 @@ export class ReplicateService {
         const maxAttempts = 60;
 
         for (let i = 0; i < maxAttempts; i++) {
-            const response = await fetch(`/api/replicate/predictions/${predictionId}`);
+            const url = `/api/replicate/predictions/${predictionId}`;
+            console.log(`🔍 [ReplicateService] Polling: ${url}`);
+            const response = await fetch(url);
 
             const prediction = await response.json();
 
