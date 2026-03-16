@@ -5,11 +5,11 @@ from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
-REPLICATE_API_KEY = os.getenv("REPLICATE_API_KEY")
 REPLICATE_BASE = "https://api.replicate.com"
 
 
 def _auth_headers():
+    REPLICATE_API_KEY = os.getenv("REPLICATE_API_KEY")
     if not REPLICATE_API_KEY:
         raise HTTPException(status_code=500, detail="REPLICATE_API_KEY not configured in backend/.env")
     return {
