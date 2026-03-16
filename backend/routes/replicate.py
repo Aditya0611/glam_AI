@@ -13,7 +13,7 @@ def _auth_headers():
     if not REPLICATE_API_KEY:
         raise HTTPException(status_code=500, detail="REPLICATE_API_KEY not configured in backend/.env")
     return {
-        "Authorization": f"Token {REPLICATE_API_KEY}",
+        "Authorization": f"Bearer {REPLICATE_API_KEY}",
         "Content-Type": "application/json",
     }
 
